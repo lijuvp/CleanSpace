@@ -33,6 +33,7 @@ export default function Footer() {
           <h4>Company</h4>
           <ul>
             <li><Link to="/services">All services</Link></li>
+            <li><Link to="/#plans">Care Plans</Link></li>
             <li><Link to="/#how-it-works">How it works</Link></li>
             <li><Link to="/#pricing">Pricing</Link></li>
             <li><Link to="/#faq">FAQ</Link></li>

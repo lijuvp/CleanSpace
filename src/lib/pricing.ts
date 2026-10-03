@@ -1,4 +1,13 @@
-import { extras, frequencies, unitLabels, type FrequencyId, type Service, type Unit } from '../data/services'
+import type { Plan } from '../data/plans'
+import {
+  extras,
+  frequencies,
+  getService,
+  unitLabels,
+  type FrequencyId,
+  type Service,
+  type Unit,
+} from '../data/services'
 import { formatMoney } from './format'
 
 export interface Sizing {
@@ -75,6 +84,36 @@ export function quote(
     team,
     estimateOnly: !!service.fromPrice,
   }
+}
+
+export interface PlanQuote {
+  sqft: number
+  /** What the included visits would cost per month if booked one at a time. */
+  value: number
+  savings: number
+  /** Monthly subscription price. */
+  total: number
+  /** Duration of a routine visit, used for the first appointment. */
+  visitHours: number
+  estimateOnly: boolean
+}
+
+const roundTo10 = (n: number) => Math.round(n / 10) * 10
+
+export function planQuote(plan: Plan, sqft: number): PlanQuote {
+  let yearly = 0
+  let visitHours = 1
+  let estimateOnly = false
+  plan.items.forEach((item, i) => {
+    const service = getService(item.serviceId)!
+    const q = quote(service, { sqft, seats: item.seats ?? 1 }, [], 'once')
+    yearly += q.total * item.perYear
+    if (i === 0) visitHours = q.hours
+    estimateOnly ||= q.estimateOnly
+  })
+  const value = roundTo10(yearly / 12)
+  const total = roundTo10(value * (1 - plan.discount))
+  return { sqft, value, savings: value - total, total, visitHours, estimateOnly }
 }
 
 /** Rate card label, e.g. "₹6/sq.ft", "from ₹2/sq.ft", "₹7–₹10/sq.ft". */

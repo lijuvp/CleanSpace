@@ -1,7 +1,8 @@
 import { bookingEndpoint, business } from '../data/config'
+import type { PlanId } from '../data/plans'
 import type { FrequencyId, ServiceId } from '../data/services'
 import { parseISODate } from './format'
-import type { Quote, Sizing } from './pricing'
+import type { PlanQuote, Quote, Sizing } from './pricing'
 
 export interface Contact {
   name: string
@@ -15,6 +16,8 @@ export interface Contact {
 
 export interface BookingDraft {
   serviceId: ServiceId | null
+  /** Set instead of serviceId when subscribing to a Care Plan. */
+  planId: PlanId | null
   frequency: FrequencyId
   sizing: Sizing
   extras: string[]
@@ -23,16 +26,21 @@ export interface BookingDraft {
   contact: Contact
 }
 
-export interface Booking extends Omit<BookingDraft, 'serviceId'> {
-  serviceId: ServiceId
+export interface Booking extends BookingDraft {
   serviceName: string
   reference: string
   createdAt: string
-  quote: Quote
+  quote: Quote | null
+  planQuote: PlanQuote | null
+  /** Length of the (first) visit, for the calendar entry. */
+  durationHours: number
 }
+
+export type BookingPricing = Pick<Booking, 'quote' | 'planQuote' | 'durationHours'>
 
 export const emptyDraft: BookingDraft = {
   serviceId: null,
+  planId: null,
   frequency: 'once',
   sizing: { sqft: 1000, seats: 5 },
   extras: [],
@@ -75,24 +83,25 @@ const makeReference = () => {
 }
 
 export async function submitBooking(
-  draft: BookingDraft & { serviceId: ServiceId },
+  draft: BookingDraft,
   serviceName: string,
-  q: Quote,
+  pricing: BookingPricing,
 ): Promise<Booking> {
   const booking: Booking = {
     ...draft,
+    ...pricing,
     serviceName,
-    quote: q,
     reference: makeReference(),
     createdAt: new Date().toISOString(),
   }
 
   if (bookingEndpoint) {
+    const kind = draft.planId ? 'subscription' : 'booking'
     const res = await fetch(bookingEndpoint, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
       body: JSON.stringify({
-        _subject: `New booking ${booking.reference} — ${serviceName}`,
+        _subject: `New ${kind} ${booking.reference} — ${serviceName}`,
         ...booking,
       }),
     })
@@ -116,7 +125,7 @@ export function calendarFileUrl(b: Booking) {
   const start = parseISODate(b.date!)
   const [h, m] = b.time!.split(':').map(Number)
   start.setHours(h, m, 0, 0)
-  const end = new Date(start.getTime() + b.quote.hours * 3600_000)
+  const end = new Date(start.getTime() + b.durationHours * 3600_000)
   const stamp = (d: Date) => d.toISOString().replace(/[-:]/g, '').replace(/\.\d{3}/, '')
   const address = [b.contact.address, b.contact.city, b.contact.zip].filter(Boolean).join(', ')
 

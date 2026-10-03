@@ -14,6 +14,7 @@ import { useState, type ReactNode } from 'react'
 import { Link } from 'react-router-dom'
 import Faq from '../components/Faq'
 import { Bubbles, BucketMop, SparkleCluster, Sponge, SprayBottle } from '../components/Graphics'
+import CarePlans, { savePercent } from '../components/Plans'
 import ServiceCard, { Rate } from '../components/ServiceCard'
 import SizeInput from '../components/SizeInput'
 import { business } from '../data/config'
@@ -149,7 +150,13 @@ function Estimator({
       <Link to={bookUrl} className="btn btn--primary btn--block btn--lg">
         Book now <ArrowRight size={18} />
       </Link>
-      <p className="calculator__note">No payment today · Free cancellation up to 24h</p>
+      <p className="calculator__note">
+        {service.recurring ? (
+          <Link to="/#plans">Need regular cleaning? Save more with a Care Plan →</Link>
+        ) : (
+          'No payment today · Free cancellation up to 24h'
+        )}
+      </p>
     </div>
   )
 }
@@ -198,6 +205,13 @@ function Hero({ estimate }: { estimate: ReactNode }) {
               <Phone size={18} /> {business.phone}
             </a>
           </div>
+          <Link to="/#plans" className="hero__promo">
+            <span className="hero__promo-tag">New</span>
+            <span>
+              <strong>Care Plans</strong> — monthly cleaning &amp; pest control, save up to {savePercent}
+            </span>
+            <ArrowRight size={16} />
+          </Link>
         </div>
         <div className="hero__visual">
           <Sponge className="hero__sponge" />
@@ -284,7 +298,7 @@ function Pricing({
           <h2>Simple rates. No surprises.</h2>
           <p>
             Most services are priced per square foot of the area we work on; sofa shampooing is per
-            seat. Regular cleaning plans save up to 20%.
+            seat. Need us regularly? <Link to="/#plans">Care Plans</Link> save up to {savePercent}.
           </p>
           <p className="muted small">
             Tap any service to get an instant estimate. “From” prices are confirmed after a free
@@ -347,6 +361,7 @@ export default function Home() {
         </div>
       </section>
 
+      <CarePlans />
       <ServicesSection />
       <HowItWorks />
       <Pricing selected={estimate.serviceId} onSelect={pickFromRateCard} />

@@ -1,6 +1,7 @@
 import { ArrowRight, Check, Repeat, Ruler, Search, TrendingDown, Users } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import { Bubbles, SprayBottle } from '../components/Graphics'
+import { PlanBanner } from '../components/Plans'
 import { Rate } from '../components/ServiceCard'
 import { categories, extras, services } from '../data/services'
 import { formatMoney } from '../lib/format'
@@ -25,6 +26,7 @@ export default function Services() {
               </a>
             ))}
           </nav>
+          <PlanBanner />
         </div>
       </section>
 

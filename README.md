@@ -29,6 +29,9 @@ npm run dev        # http://localhost:5173/CleanSpace/
   closed days, booking window): `src/data/config.ts`. The SEO title, description and
   location data live in `index.html`.
 - **Services, prices, add-ons, discounts, time slots**: `src/data/services.ts`
+- **Care Plans (monthly subscriptions)**: `src/data/plans.ts`, which sets what each plan includes,
+  how many visits a year and the plan discount. Monthly prices are calculated from the service
+  rates for the customer's home size, so they follow any rate changes automatically.
 - **Price formula**: `src/lib/pricing.ts`
 - **FAQ**: `src/components/Faq.tsx`
 - **Colours & styling**: CSS variables at the top of `src/styles.css`

@@ -7,6 +7,10 @@ const faqs = [
     a: 'Most services are priced per square foot of the area we work on, and sofa shampooing is priced per seat. Pick your service and size online and you’ll see the full price before you book.',
   },
   {
+    q: 'How do Care Plans work?',
+    a: 'Choose a plan and your home size, then pick a date for your first visit. We call to agree a regular schedule and assign a dedicated team. You pay monthly after the month’s visits — no lock-in, and you can pause or cancel anytime with 7 days’ notice.',
+  },
+  {
     q: 'Which areas do you serve?',
     a: `We serve homes and offices across ${business.city}, ${business.state} — including ${business.areas.join(', ')}. Outside these areas? Book anyway or call us and we’ll confirm if we can reach you.`,
   },

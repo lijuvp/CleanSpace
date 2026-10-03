@@ -13,6 +13,7 @@ import {
   MapPin,
   Pencil,
   Phone,
+  Repeat,
   User,
 } from 'lucide-react'
 import { useEffect, useRef, useState, type ReactNode, type RefObject } from 'react'
@@ -21,7 +22,9 @@ import Calendar from '../components/Calendar'
 import { Rate } from '../components/ServiceCard'
 import SizeInput from '../components/SizeInput'
 import { Sparkle } from '../components/Graphics'
+import { savePercent } from '../components/Plans'
 import { bookingEndpoint, business } from '../data/config'
+import { getPlan, plans, type Plan, type PlanId } from '../data/plans'
 import {
   categories,
   extras,
@@ -44,24 +47,45 @@ import {
   type Contact,
 } from '../lib/booking'
 import { formatDate, formatHours, formatMoney, formatNumber, formatTime } from '../lib/format'
-import { quote, sizingForSwitch, type Quote } from '../lib/pricing'
+import {
+  clampQuantity,
+  planQuote,
+  quote,
+  sizingForSwitch,
+  type PlanQuote,
+  type Quote,
+} from '../lib/pricing'
 
 const STEPS = ['Service', 'Details', 'Schedule', 'Your info', 'Review'] as const
 
+/** Plans are sized like a regular home clean. */
+const planSizing = getService('regular')!
+
 function initialDraft(params: URLSearchParams): BookingDraft {
   const draft = loadDraft()
+  const plan = getPlan(params.get('plan'))
   const service = getService(params.get('service'))
-  if (!service) return draft
+  if (!plan && !service) return draft
 
   const num = (key: string, fallback: number) => {
     const v = Number(params.get(key))
     return params.has(key) && Number.isFinite(v) ? v : fallback
   }
-  const freq = params.get('frequency') as FrequencyId | null
 
+  if (plan) {
+    return {
+      ...draft,
+      planId: plan.id,
+      serviceId: null,
+      sizing: { ...draft.sizing, sqft: num('sqft', draft.sizing.sqft) },
+    }
+  }
+
+  const freq = params.get('frequency') as FrequencyId | null
   return {
     ...draft,
-    serviceId: service.id,
+    planId: null,
+    serviceId: service!.id,
     frequency: frequencies.some((f) => f.id === freq) ? freq! : draft.frequency,
     sizing: {
       sqft: num('sqft', draft.sizing.sqft),
@@ -84,7 +108,9 @@ function validateContact(c: Contact) {
 export default function Book() {
   const [params] = useSearchParams()
   const [draft, setDraft] = useState<BookingDraft>(() => initialDraft(params))
-  const [step, setStep] = useState(() => (getService(params.get('service')) ? 1 : 0))
+  const [step, setStep] = useState(() =>
+    getService(params.get('service')) || getPlan(params.get('plan')) ? 1 : 0,
+  )
   const [showErrors, setShowErrors] = useState(false)
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState('')
@@ -106,7 +132,10 @@ export default function Book() {
     headingRef.current?.focus({ preventScroll: true })
   }, [step, booking])
 
-  const service = getService(draft.serviceId)
+  const plan = getPlan(draft.planId)
+  const service = plan ? undefined : getService(draft.serviceId)
+  const planSqft = clampQuantity(planSizing, draft.sizing)
+  const pq = plan ? planQuote(plan, planSqft) : null
   const frequency: FrequencyId = service?.recurring ? draft.frequency : 'once'
   const availableExtras = service
     ? extras.filter((e) => e.categories.includes(service.category))
@@ -117,8 +146,9 @@ export default function Book() {
   const pin = draft.contact.zip.replace(/\s/g, '')
   const outsideArea = /^\d{6}$/.test(pin) && !pin.startsWith(business.pinPrefix)
 
+  const visitHours = pq?.visitHours ?? q?.hours
   const stepValid = [
-    !!service,
+    !!service || !!plan,
     true,
     !!draft.date && !!draft.time,
     Object.keys(contactErrors).length === 0,
@@ -138,15 +168,22 @@ export default function Book() {
   }
 
   const submit = async () => {
-    if (!service || !q) return
+    if (!(plan && pq) && !(service && q)) return
     setSubmitting(true)
     setError('')
     try {
-      const result = await submitBooking(
-        { ...draft, serviceId: service.id, frequency, extras: extraIds },
-        service.name,
-        q,
-      )
+      const result =
+        plan && pq
+          ? await submitBooking(
+              { ...draft, serviceId: null, frequency: 'once', extras: [], sizing: { ...draft.sizing, sqft: planSqft } },
+              `${plan.name} Care Plan`,
+              { quote: null, planQuote: pq, durationHours: pq.visitHours },
+            )
+          : await submitBooking(
+              { ...draft, planId: null, serviceId: service!.id, frequency, extras: extraIds },
+              service!.name,
+              { quote: q, planQuote: null, durationHours: q!.hours },
+            )
       clearDraft()
       setBooking(result)
     } catch (e) {
@@ -198,14 +235,61 @@ export default function Book() {
                 <StepServices
                   headingRef={headingRef}
                   selected={draft.serviceId}
+                  selectedPlan={draft.planId}
+                  planSqft={planSqft}
                   onSelect={(id) => {
                     update({
                       serviceId: id,
-                      sizing: sizingForSwitch(service, getService(id)!, draft.sizing),
+                      planId: null,
+                      sizing: sizingForSwitch(service ?? (plan && planSizing), getService(id)!, draft.sizing),
+                    })
+                    goTo(1)
+                  }}
+                  onSelectPlan={(id) => {
+                    update({
+                      planId: id,
+                      serviceId: null,
+                      sizing: sizingForSwitch(service ?? (plan && planSizing), planSizing, draft.sizing),
                     })
                     goTo(1)
                   }}
                 />
+              )}
+
+              {step === 1 && plan && pq && (
+                <section>
+                  <StepHeading headingRef={headingRef} title="Choose your plan">
+                    Pick a plan and your home size — your monthly price updates instantly.
+                  </StepHeading>
+                  <div className="option-grid option-grid--3" role="radiogroup" aria-label="Care Plan">
+                    {plans.map((p) => (
+                      <button
+                        key={p.id}
+                        type="button"
+                        role="radio"
+                        aria-checked={p.id === plan.id}
+                        className={`option option--plan ${p.id === plan.id ? 'option--active' : ''}`}
+                        onClick={() => update({ planId: p.id })}
+                      >
+                        {p.popular && <em className="badge">Popular</em>}
+                        <span className="option__icon">
+                          <p.icon size={20} />
+                        </span>
+                        <strong>{p.name}</strong>
+                        <span className="option__price">
+                          {formatMoney(planQuote(p, planSqft).total)}
+                          <small>per month</small>
+                        </span>
+                      </button>
+                    ))}
+                  </div>
+
+                  <h3 className="group-title">Home size</h3>
+                  <SizeInput service={planSizing} sizing={draft.sizing} onChange={(sizing) => update({ sizing })} />
+
+                  <h3 className="group-title">What’s included</h3>
+                  <PlanIncludes plan={plan} />
+                </section>
               )}
 
               {step === 1 && service && (
@@ -280,8 +364,10 @@ export default function Book() {
 
               {step === 2 && (
                 <section>
-                  <StepHeading headingRef={headingRef} title="When should we come?">
-                    Pick a date and arrival time. Our hours: {business.hours}.
+                  <StepHeading headingRef={headingRef} title={plan ? 'When should we start?' : 'When should we come?'}>
+                    {plan
+                      ? 'Pick a date and time for your first visit. We’ll agree the regular schedule with you on the call.'
+                      : `Pick a date and arrival time. Our hours: ${business.hours}.`}
                   </StepHeading>
                   <div className="schedule">
                     <Calendar value={draft.date} onChange={(date) => update({ date })} />
@@ -305,7 +391,7 @@ export default function Book() {
                       </div>
                       <p className="hint">
                         <Info size={16} /> Our team arrives within 30 minutes of the chosen time.
-                        {q && ` Estimated duration: ${formatHours(q.hours)}.`}
+                        {visitHours && ` Estimated duration: ${formatHours(visitHours)}.`}
                       </p>
                       {showErrors && !stepValid[2] && (
                         <p className="form-error" role="alert">
@@ -395,6 +481,47 @@ export default function Book() {
                 </section>
               )}
 
+              {step === 4 && plan && pq && (
+                <section>
+                  <StepHeading headingRef={headingRef} title="Review & subscribe">
+                    Check everything looks right. You won’t be charged today.
+                  </StepHeading>
+                  <div className="review">
+                    <ReviewRow icon={<Repeat size={18} />} label="Plan" onEdit={() => goTo(1)}>
+                      {plan.name} Care Plan · {formatNumber(pq.sqft)} sq.ft home
+                    </ReviewRow>
+                    <ReviewRow icon={<CalendarDays size={18} />} label="First visit" onEdit={() => goTo(2)}>
+                      {formatDate(draft.date!)} at {formatTime(draft.time!)}
+                    </ReviewRow>
+                    <ReviewRow icon={<MapPin size={18} />} label="Where" onEdit={() => goTo(3)}>
+                      {[draft.contact.address, draft.contact.city, draft.contact.zip]
+                        .filter(Boolean)
+                        .join(', ')}
+                    </ReviewRow>
+                    <ReviewRow icon={<User size={18} />} label="Contact" onEdit={() => goTo(3)}>
+                      {draft.contact.name} · {draft.contact.email} · {draft.contact.phone}
+                    </ReviewRow>
+                    {draft.contact.notes && (
+                      <ReviewRow icon={<Pencil size={18} />} label="Notes" onEdit={() => goTo(3)}>
+                        {draft.contact.notes}
+                      </ReviewRow>
+                    )}
+                  </div>
+                  <div className="review__total">
+                    <PlanBreakdown pq={pq} />
+                  </div>
+                  <p className="hint">
+                    <Lock size={16} /> No payment now. You pay monthly after each month’s visits, and
+                    can pause or cancel anytime.
+                  </p>
+                  {error && (
+                    <p className="form-error" role="alert">
+                      {error}
+                    </p>
+                  )}
+                </section>
+              )}
+
               {step === 4 && service && q && (
                 <section>
                   <StepHeading headingRef={headingRef} title="Review & confirm">
@@ -446,9 +573,13 @@ export default function Book() {
               )}
             </div>
 
-            {summaryOpen && service && q && (
+            {summaryOpen && (plan || service) && (
               <div className="summary-sheet">
-                <Summary service={service} draft={draft} frequency={frequency} extraIds={extraIds} q={q} />
+                {plan && pq ? (
+                  <PlanSummary plan={plan} draft={draft} pq={pq} />
+                ) : (
+                  <Summary service={service!} draft={draft} frequency={frequency} extraIds={extraIds} q={q!} />
+                )}
               </div>
             )}
 
@@ -463,20 +594,20 @@ export default function Book() {
                 </Link>
               )}
 
-              {q && (
+              {(pq || q) && (
                 <button
                   type="button"
                   className="step-footer__total"
                   onClick={() => setSummaryOpen((o) => !o)}
                   aria-expanded={summaryOpen}
                 >
-                  <small>Total</small>
-                  <strong>{formatMoney(q.total)}</strong>
+                  <small>{pq ? 'Per month' : 'Total'}</small>
+                  <strong>{formatMoney(pq ? pq.total : q!.total)}</strong>
                   <ChevronUp size={16} className={summaryOpen ? 'flip' : ''} />
                 </button>
               )}
 
-              {(step > 0 || service) && (
+              {(step > 0 || service || plan) && (
                 <button
                   type="button"
                   className="btn btn--primary"
@@ -486,11 +617,11 @@ export default function Book() {
                   {step === STEPS.length - 1 ? (
                     submitting ? (
                       <>
-                        <span className="spinner spinner--light" /> Booking…
+                        <span className="spinner spinner--light" /> {plan ? 'Subscribing…' : 'Booking…'}
                       </>
                     ) : (
                       <>
-                        Confirm booking <Check size={18} />
+                        {plan ? 'Confirm subscription' : 'Confirm booking'} <Check size={18} />
                       </>
                     )
                   ) : (
@@ -504,7 +635,9 @@ export default function Book() {
           </div>
 
           <aside className="booking__aside">
-            {service && q ? (
+            {plan && pq ? (
+              <PlanSummary plan={plan} draft={draft} pq={pq} />
+            ) : service && q ? (
               <Summary service={service} draft={draft} frequency={frequency} extraIds={extraIds} q={q} />
             ) : (
               <div className="summary summary--empty">
@@ -545,18 +678,53 @@ function StepHeading({
 
 function StepServices({
   selected,
+  selectedPlan,
+  planSqft,
   onSelect,
+  onSelectPlan,
   headingRef,
 }: {
   selected: string | null
+  selectedPlan: PlanId | null
+  planSqft: number
   onSelect: (id: Service['id']) => void
+  onSelectPlan: (id: PlanId) => void
   headingRef: RefObject<HTMLHeadingElement | null>
 }) {
   return (
     <section>
       <StepHeading headingRef={headingRef} title="What do you need?">
-        Select a service to get started — you’ll see your exact price on the next step.
+        Select a service or a monthly Care Plan — you’ll see your exact price on the next step.
       </StepHeading>
+      <h3 className="group-title">
+        Care Plans · monthly subscription <em className="badge badge--inline">Save up to {savePercent}</em>
+      </h3>
+      <div className="option-grid">
+        {plans.map((p) => (
+          <button
+            key={p.id}
+            type="button"
+            className={`option option--service ${selectedPlan === p.id ? 'option--active' : ''}`}
+            aria-pressed={selectedPlan === p.id}
+            onClick={() => onSelectPlan(p.id)}
+          >
+            <span className="option__icon">
+              <p.icon size={22} />
+            </span>
+            <span className="option__body">
+              <strong>
+                {p.name} Care Plan
+                {p.popular && <em className="badge badge--inline">Popular</em>}
+              </strong>
+              <span>{p.items.map((i) => i.label).join(' · ')}</span>
+            </span>
+            <span className="option__price">
+              {formatMoney(planQuote(p, planSqft).total)}
+              <small>per month</small>
+            </span>
+          </button>
+        ))}
+      </div>
       {categories.map((cat) => (
         <div key={cat.id}>
           <h3 className="group-title">{cat.label}</h3>
@@ -682,6 +850,77 @@ function PriceBreakdown({ q }: { q: Quote }) {
   )
 }
 
+function PlanIncludes({ plan }: { plan: Plan }) {
+  return (
+    <ul className="plan-includes">
+      {plan.items.map((item) => (
+        <li key={item.label}>
+          <Check size={16} /> {item.label}
+        </li>
+      ))}
+      {plan.perks.map((perk) => (
+        <li key={perk} className="plan-includes__perk">
+          <Sparkle size={12} /> {perk}
+        </li>
+      ))}
+    </ul>
+  )
+}
+
+function PlanBreakdown({ pq }: { pq: PlanQuote }) {
+  return (
+    <dl className="breakdown">
+      <div>
+        <dt>Included visits, booked separately</dt>
+        <dd>{formatMoney(pq.value)}</dd>
+      </div>
+      <div className="breakdown__discount">
+        <dt>Care Plan saving</dt>
+        <dd>−{formatMoney(pq.savings)}</dd>
+      </div>
+      <div className="breakdown__total">
+        <dt>Per month</dt>
+        <dd>{formatMoney(pq.total)}</dd>
+      </div>
+      <p className="breakdown__note">
+        Pause or cancel anytime. {pq.estimateOnly && 'Final price confirmed at a free home visit.'}
+      </p>
+    </dl>
+  )
+}
+
+function PlanSummary({ plan, draft, pq }: { plan: Plan; draft: BookingDraft; pq: PlanQuote }) {
+  return (
+    <div className="summary">
+      <h3>Your subscription</h3>
+      <div className="summary__service">
+        <span className="option__icon">
+          <plan.icon size={20} />
+        </span>
+        <div>
+          <strong>{plan.name} Care Plan</strong>
+          <small>{formatNumber(pq.sqft)} sq.ft home</small>
+        </div>
+      </div>
+      <ul className="summary__meta">
+        <li>
+          <CalendarDays size={16} />
+          {draft.date
+            ? `First visit ${formatDate(draft.date, { weekday: 'short', month: 'short' })}`
+            : 'First visit not scheduled'}
+          {draft.time && `, ${formatTime(draft.time)}`}
+        </li>
+        {plan.items.map((item) => (
+          <li key={item.label}>
+            <Check size={16} /> {item.label}
+          </li>
+        ))}
+      </ul>
+      <PlanBreakdown pq={pq} />
+    </div>
+  )
+}
+
 function Summary({
   service,
   draft,
@@ -751,7 +990,7 @@ function Confirmation({
           <Sparkle size={12} className="twinkle" style={{ right: -36, bottom: 6, animationDelay: '1s' }} />
         </div>
         <h1 ref={headingRef} tabIndex={-1}>
-          You’re booked, {booking.contact.name.split(' ')[0]}!
+          {booking.planQuote ? 'Welcome to Care Plans' : 'You’re booked'}, {booking.contact.name.split(' ')[0]}!
         </h1>
         <p className="lead">
           We’ve received your request{bookingEndpoint ? ` and sent the details to ${booking.contact.email}` : ''}.
@@ -760,21 +999,25 @@ function Confirmation({
 
         <div className="confirmation__card">
           <div className="confirmation__ref">
-            <small>Booking reference</small>
+            <small>{booking.planQuote ? 'Subscription reference' : 'Booking reference'}</small>
             <strong>{booking.reference}</strong>
           </div>
           <ul className="confirmation__details">
             <li>
-              <CircleCheck size={18} /> {booking.serviceName}
+              {booking.planQuote ? <Repeat size={18} /> : <CircleCheck size={18} />} {booking.serviceName}
             </li>
             <li>
-              <CalendarDays size={18} /> {formatDate(booking.date!)} at {formatTime(booking.time!)}
+              <CalendarDays size={18} /> {booking.planQuote ? 'First visit ' : ''}
+              {formatDate(booking.date!)} at {formatTime(booking.time!)}
             </li>
             <li>
               <MapPin size={18} /> {[booking.contact.address, booking.contact.city].filter(Boolean).join(', ')}
             </li>
             <li>
-              <Lock size={18} /> {formatMoney(booking.quote.total)} — pay after the service
+              <Lock size={18} />{' '}
+              {booking.planQuote
+                ? `${formatMoney(booking.planQuote.total)} a month — pay monthly, cancel anytime`
+                : `${formatMoney(booking.quote!.total)} — pay after the service`}
             </li>
           </ul>
           <a className="btn btn--soft btn--block" href={icsUrl} download={`cleanspace-${booking.reference}.ics`}>
@@ -786,7 +1029,10 @@ function Confirmation({
           <h2>What happens next</h2>
           <ol>
             <li>
-              <Mail size={18} /> We call to confirm your booking and assign your team.
+              <Mail size={18} />{' '}
+              {booking.planQuote
+                ? 'We call to confirm your plan, agree your regular schedule and assign your team.'
+                : 'We call to confirm your booking and assign your team.'}
             </li>
             <li>
               <Phone size={18} /> You get a reminder the day before your visit.
