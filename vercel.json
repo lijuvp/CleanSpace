@@ -4,5 +4,8 @@
   "buildCommand": "npm run build:vercel",
   "outputDirectory": "vercel-dist",
   "redirects": [{ "source": "/", "destination": "/CleanSpace/", "permanent": false }],
-  "rewrites": [{ "source": "/CleanSpace/:path*", "destination": "/CleanSpace/index.html" }]
+  "rewrites": [
+    { "source": "/CleanSpace/api/:path*", "destination": "/api/:path*" },
+    { "source": "/CleanSpace/:path*", "destination": "/CleanSpace/index.html" }
+  ]
 }

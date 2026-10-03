@@ -2544,6 +2544,28 @@ textarea:focus {
   color: var(--brand-600);
 }
 
+.slot:disabled {
+  cursor: not-allowed;
+}
+
+.slots__grid[aria-busy='true'] .slot {
+  opacity: 0.6;
+}
+
+.slot--taken {
+  background: #f4f6f6;
+  color: var(--muted);
+}
+
+.slot--taken:hover {
+  border-color: var(--line);
+}
+
+.slot--taken small {
+  font-size: 0.75rem;
+  font-weight: 500;
+}
+
 .hint {
   display: flex;
   gap: 8px;

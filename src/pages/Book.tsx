@@ -46,6 +46,7 @@ import {
   type BookingDraft,
   type Contact,
 } from '../lib/booking'
+import { fetchBusy, slotFree, SlotTakenError, type BusyRanges } from '../lib/availability'
 import { formatDate, formatHours, formatMoney, formatNumber, formatTime } from '../lib/format'
 import {
   clampQuantity,
@@ -116,6 +117,8 @@ export default function Book() {
   const [error, setError] = useState('')
   const [booking, setBooking] = useState<Booking | null>(null)
   const [summaryOpen, setSummaryOpen] = useState(false)
+  const [busy, setBusy] = useState<{ date: string; ranges: BusyRanges | null } | null>(null)
+  const [busyRefresh, setBusyRefresh] = useState(0)
   const headingRef = useRef<HTMLHeadingElement>(null)
   const firstRender = useRef(true)
 
@@ -147,10 +150,25 @@ export default function Book() {
   const outsideArea = /^\d{6}$/.test(pin) && !pin.startsWith(business.pinPrefix)
 
   const visitHours = pq?.visitHours ?? q?.hours
+  const busyRanges = busy && busy.date === draft.date ? busy.ranges : null
+  const slotsLoading = !!draft.date && busy?.date !== draft.date
+  const isFree = (time: string) => !busyRanges || slotFree(time, visitHours ?? 1, busyRanges)
+  const timeOk = !!draft.time && !slotsLoading && isFree(draft.time)
+
+  useEffect(() => {
+    if (step !== 2 || !draft.date) return
+    const date = draft.date
+    const controller = new AbortController()
+    fetchBusy(date, controller.signal).then((ranges) => {
+      if (!controller.signal.aborted) setBusy({ date, ranges })
+    })
+    return () => controller.abort()
+  }, [step, draft.date, busyRefresh])
+
   const stepValid = [
     !!service || !!plan,
     true,
-    !!draft.date && !!draft.time,
+    !!draft.date && timeOk,
     Object.keys(contactErrors).length === 0,
     true,
   ]
@@ -188,6 +206,11 @@ export default function Book() {
       setBooking(result)
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Something went wrong. Please try again.')
+      if (e instanceof SlotTakenError) {
+        update({ time: null })
+        setBusyRefresh((n) => n + 1)
+        goTo(2)
+      }
     } finally {
       setSubmitting(false)
     }
@@ -375,20 +398,44 @@ export default function Book() {
                       <h3 className="group-title">
                         {draft.date ? formatDate(draft.date) : 'Arrival time'}
                       </h3>
-                      <div className="slots__grid" role="radiogroup" aria-label="Arrival time">
-                        {timeSlots.map((t) => (
-                          <button
-                            key={t}
-                            type="button"
-                            role="radio"
-                            aria-checked={draft.time === t}
-                            className={`slot ${draft.time === t ? 'slot--active' : ''}`}
-                            onClick={() => update({ time: t })}
-                          >
-                            <Clock size={16} /> {formatTime(t)}
-                          </button>
-                        ))}
+                      <div
+                        className="slots__grid"
+                        role="radiogroup"
+                        aria-label="Arrival time"
+                        aria-busy={slotsLoading}
+                      >
+                        {timeSlots.map((t) => {
+                          const free = isFree(t)
+                          const active = draft.time === t && free
+                          return (
+                            <button
+                              key={t}
+                              type="button"
+                              role="radio"
+                              aria-checked={active}
+                              disabled={!free || slotsLoading}
+                              className={`slot ${active ? 'slot--active' : ''} ${free ? '' : 'slot--taken'}`}
+                              onClick={() => {
+                                update({ time: t })
+                                setError('')
+                              }}
+                            >
+                              <Clock size={16} /> {formatTime(t)}
+                              {!free && <small>Booked</small>}
+                            </button>
+                          )
+                        })}
                       </div>
+                      {busyRanges && draft.date && timeSlots.every((t) => !isFree(t)) && (
+                        <p className="form-error" role="status">
+                          We’re fully booked on this day. Please pick another date.
+                        </p>
+                      )}
+                      {error && (
+                        <p className="form-error" role="alert">
+                          {error}
+                        </p>
+                      )}
                       <p className="hint">
                         <Info size={16} /> Our team arrives within 30 minutes of the chosen time.
                         {visitHours && ` Estimated duration: ${formatHours(visitHours)}.`}

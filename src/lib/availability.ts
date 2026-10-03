@@ -1,0 +1,70 @@
+/** Busy periods for one day, as [startMinute, endMinute] from midnight Kerala time. */
+export type BusyRanges = [number, number][]
+
+export interface CalendarBooking {
+  reference: string
+  serviceName: string
+  date: string
+  time: string
+  durationHours: number
+  price: string
+  details: string[]
+  contact: { name: string; phone: string; email: string; address: string; city: string; zip: string; notes: string }
+}
+
+export class SlotTakenError extends Error {
+  constructor() {
+    super('Sorry, that time was just booked by someone else. Please pick another time.')
+  }
+}
+
+const api = `${import.meta.env.BASE_URL}api`
+
+async function readJson(res: Response) {
+  if (!res.headers.get('content-type')?.includes('application/json')) return null
+  return res.json().catch(() => null)
+}
+
+/**
+ * Busy periods from the Google Calendar, or null when the calendar isn't
+ * connected or can't be reached (every slot is then offered).
+ */
+export async function fetchBusy(date: string, signal?: AbortSignal): Promise<BusyRanges | null> {
+  try {
+    const res = await fetch(`${api}/availability?date=${date}`, { signal })
+    const data = res.ok ? await readJson(res) : null
+    return Array.isArray(data?.busy) ? (data.busy as BusyRanges) : null
+  } catch {
+    return null
+  }
+}
+
+const toMinutes = (time: string) => {
+  const [h, m] = time.split(':').map(Number)
+  return h * 60 + m
+}
+
+export function slotFree(time: string, hours: number, busy: BusyRanges) {
+  const start = toMinutes(time)
+  const end = start + Math.ceil(hours * 60)
+  return busy.every(([s, e]) => end <= s || start >= e)
+}
+
+/**
+ * Adds the booking to the Google Calendar. Returns whether it was added;
+ * throws SlotTakenError if the time is no longer free.
+ */
+export async function addToBusinessCalendar(booking: CalendarBooking): Promise<boolean> {
+  try {
+    const res = await fetch(`${api}/book`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(booking),
+    })
+    if (res.status === 409) throw new SlotTakenError()
+    return res.ok && !!(await readJson(res))?.eventId
+  } catch (e) {
+    if (e instanceof SlotTakenError) throw e
+    return false
+  }
+}

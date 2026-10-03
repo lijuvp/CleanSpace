@@ -1,7 +1,8 @@
 import { bookingEndpoint, business } from '../data/config'
 import type { PlanId } from '../data/plans'
-import type { FrequencyId, ServiceId } from '../data/services'
-import { parseISODate } from './format'
+import { extras, frequencies, unitLabels, type FrequencyId, type ServiceId } from '../data/services'
+import { addToBusinessCalendar } from './availability'
+import { formatMoney, formatNumber, parseISODate } from './format'
 import type { PlanQuote, Quote, Sizing } from './pricing'
 
 export interface Contact {
@@ -95,6 +96,17 @@ export async function submitBooking(
     createdAt: new Date().toISOString(),
   }
 
+  const inCalendar = await addToBusinessCalendar({
+    reference: booking.reference,
+    serviceName,
+    date: booking.date!,
+    time: booking.time!,
+    durationHours: booking.durationHours,
+    price: priceLabel(booking),
+    details: bookingDetails(booking),
+    contact: booking.contact,
+  })
+
   if (bookingEndpoint) {
     const kind = draft.planId ? 'subscription' : 'booking'
     const res = await fetch(bookingEndpoint, {
@@ -102,11 +114,15 @@ export async function submitBooking(
       headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
       body: JSON.stringify({
         _subject: `New ${kind} ${booking.reference} — ${serviceName}`,
+        googleCalendar: inCalendar ? 'Added' : 'Not added — please add it manually',
         ...booking,
       }),
     })
-    if (!res.ok) throw new Error('We could not send your booking. Please try again or call us.')
-  } else {
+    // Once it's in the calendar the booking is safe, so only fail when nothing was recorded.
+    if (!res.ok && !inCalendar) {
+      throw new Error('We could not send your booking. Please try again or call us.')
+    }
+  } else if (!inCalendar) {
     await new Promise((r) => setTimeout(r, 700))
   }
 
@@ -118,6 +134,22 @@ export async function submitBooking(
   }
 
   return booking
+}
+
+const priceLabel = (b: Booking) =>
+  b.planQuote
+    ? `${formatMoney(b.planQuote.total)} a month`
+    : `${formatMoney(b.quote!.total)}${b.quote!.estimateOnly ? ' (estimate)' : ''}`
+
+function bookingDetails(b: Booking) {
+  if (b.planQuote) return [`Home size: ${formatNumber(b.planQuote.sqft)} sq.ft`, 'First visit of a Care Plan']
+  const q = b.quote!
+  const unit = q.quantity === 1 ? unitLabels[q.unit].short : unitLabels[q.unit].plural
+  const lines = [`Size: ${formatNumber(q.quantity)} ${unit}`]
+  if (b.frequency !== 'once') lines.push(`Repeats: ${frequencies.find((f) => f.id === b.frequency)?.name}`)
+  const extraNames = extras.filter((e) => b.extras.includes(e.id)).map((e) => e.name)
+  if (extraNames.length) lines.push(`Add-ons: ${extraNames.join(', ')}`)
+  return lines
 }
 
 /** Builds an .ics calendar file so customers can save the appointment. */

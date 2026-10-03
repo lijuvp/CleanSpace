@@ -51,6 +51,35 @@ npm run build
 Each booking is POSTed as JSON (service, size, extras, date/time, contact,
 price breakdown and a `CS-XXXXXX` reference).
 
+## Google Calendar availability
+
+When connected, the Schedule step only offers arrival times where the whole visit
+fits around existing events on your bookings calendar, and every confirmed booking
+is added to that calendar (customer, phone, address, price and reference). To block
+time off, add any event to the calendar. Until it's connected, all times are offered.
+
+This runs as two Vercel functions in `api/` (`/CleanSpace/api/availability` and
+`/CleanSpace/api/book`). One-time setup:
+
+1. In [Google Cloud Console](https://console.cloud.google.com/), create a project and
+   enable the **Google Calendar API** (APIs & Services → Library).
+2. Go to **IAM & Admin → Service accounts**, create a service account, then open it →
+   **Keys → Add key → JSON**. A `.json` file downloads; keep it private.
+3. In [Google Calendar](https://calendar.google.com), create a calendar (e.g. "Clean Space
+   bookings"). In its **Settings → Share with specific people**, add the service
+   account's email (`…@….iam.gserviceaccount.com`) with **Make changes to events**.
+   Copy the **Calendar ID** from **Integrate calendar**.
+4. In Vercel → project `clean-space` → **Settings → Environment Variables**, add:
+   - `GOOGLE_SERVICE_ACCOUNT_EMAIL`: `client_email` from the JSON file
+   - `GOOGLE_PRIVATE_KEY`: `private_key` from the JSON file (the whole
+     `-----BEGIN PRIVATE KEY-----…` value)
+   - `GOOGLE_CALENDAR_ID`: the Calendar ID
+5. Redeploy (`npx vercel --prod`). Check
+   `https://www.lijuvp.com/CleanSpace/api/availability?date=YYYY-MM-DD` returns
+   `{"busy":[…]}` rather than `Calendar not connected`.
+
+The functions only run on Vercel; with `npm run dev` every time is offered.
+
 ## Deploy to lijuvp.com/CleanSpace
 
 ### Vercel (current setup for lijuvp.com)
