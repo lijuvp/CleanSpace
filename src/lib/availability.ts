@@ -44,10 +44,18 @@ const toMinutes = (time: string) => {
   return h * 60 + m
 }
 
-export function slotFree(time: string, hours: number, busy: BusyRanges) {
+/**
+ * 'booked': something is already scheduled at that time.
+ * 'no-room': the time is free, but the visit would run into the next booking.
+ */
+export type SlotStatus = 'free' | 'booked' | 'no-room'
+
+export function slotStatus(time: string, hours: number, busy: BusyRanges): SlotStatus {
   const start = toMinutes(time)
   const end = start + Math.ceil(hours * 60)
-  return busy.every(([s, e]) => end <= s || start >= e)
+  if (busy.some(([s, e]) => start >= s && start < e)) return 'booked'
+  if (busy.some(([s, e]) => start < e && end > s)) return 'no-room'
+  return 'free'
 }
 
 /**

@@ -2552,13 +2552,28 @@ textarea:focus {
   opacity: 0.6;
 }
 
+.slot__time {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
 .slot--taken {
-  background: #f4f6f6;
+  flex-direction: column;
+  gap: 2px;
+  padding: 9px 14px;
+  background: transparent;
+  border-style: dashed;
   color: var(--muted);
 }
 
 .slot--taken:hover {
   border-color: var(--line);
+}
+
+.slot--taken .slot__time {
+  text-decoration: line-through;
+  opacity: 0.6;
 }
 
 .slot--taken small {

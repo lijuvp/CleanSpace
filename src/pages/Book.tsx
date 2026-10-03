@@ -46,7 +46,7 @@ import {
   type BookingDraft,
   type Contact,
 } from '../lib/booking'
-import { fetchBusy, slotFree, SlotTakenError, type BusyRanges } from '../lib/availability'
+import { fetchBusy, slotStatus, SlotTakenError, type BusyRanges, type SlotStatus } from '../lib/availability'
 import { formatDate, formatHours, formatMoney, formatNumber, formatTime } from '../lib/format'
 import {
   clampQuantity,
@@ -152,7 +152,9 @@ export default function Book() {
   const visitHours = pq?.visitHours ?? q?.hours
   const busyRanges = busy && busy.date === draft.date ? busy.ranges : null
   const slotsLoading = !!draft.date && busy?.date !== draft.date
-  const isFree = (time: string) => !busyRanges || slotFree(time, visitHours ?? 1, busyRanges)
+  const statusOf = (time: string): SlotStatus =>
+    busyRanges ? slotStatus(time, visitHours ?? 1, busyRanges) : 'free'
+  const isFree = (time: string) => statusOf(time) === 'free'
   const timeOk = !!draft.time && !slotsLoading && isFree(draft.time)
 
   useEffect(() => {
@@ -405,7 +407,8 @@ export default function Book() {
                         aria-busy={slotsLoading}
                       >
                         {timeSlots.map((t) => {
-                          const free = isFree(t)
+                          const status = statusOf(t)
+                          const free = status === 'free'
                           const active = draft.time === t && free
                           return (
                             <button
@@ -420,16 +423,27 @@ export default function Book() {
                                 setError('')
                               }}
                             >
-                              <Clock size={16} /> {formatTime(t)}
-                              {!free && <small>Booked</small>}
+                              <span className="slot__time">
+                                <Clock size={16} /> {formatTime(t)}
+                              </span>
+                              {!free && (
+                                <small>{status === 'booked' ? 'Booked' : 'Not enough time'}</small>
+                              )}
                             </button>
                           )
                         })}
                       </div>
-                      {busyRanges && draft.date && timeSlots.every((t) => !isFree(t)) && (
+                      {busyRanges && draft.date && timeSlots.every((t) => !isFree(t)) ? (
                         <p className="form-error" role="status">
                           We’re fully booked on this day. Please pick another date.
                         </p>
+                      ) : (
+                        timeSlots.some((t) => statusOf(t) === 'no-room') && (
+                          <p className="hint">
+                            <Info size={16} /> Some start times are unavailable: your visit takes about{' '}
+                            {formatHours(visitHours ?? 1)} and would run into another booking.
+                          </p>
+                        )
                       )}
                       {error && (
                         <p className="form-error" role="alert">
