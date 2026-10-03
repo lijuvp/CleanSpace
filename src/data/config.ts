@@ -2,7 +2,7 @@
 export const business = {
   name: 'Clean Space',
   tagline: 'Spotless spaces. Zero hassle.',
-  phone: '+91 98765 43210',
+  phone: '+91 7559049070',
   email: 'hello@cleanspace.in',
   city: 'Kozhikode',
   state: 'Kerala',
