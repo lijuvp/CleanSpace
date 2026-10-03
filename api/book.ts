@@ -1,66 +1,96 @@
 import { TIME_ZONE, busyBetween, createEvent, isConfigured, isDate, isTime, json, keralaTime } from './_google.js'
-
-interface CalendarBooking {
-  reference: string
-  serviceName: string
-  date: string
-  time: string
-  durationHours: number
-  price: string
-  details: string[]
-  contact: { name: string; phone: string; email: string; address: string; city: string; zip: string; notes: string }
-}
+import { mailConfigured, sendBookingEmails, type BookingEmail } from './_mail.js'
 
 const text = (v: unknown, max = 300) => (typeof v === 'string' ? v.trim().slice(0, max) : '')
 
+function clean(body: Record<string, unknown>): BookingEmail | null {
+  const c = (body.contact ?? {}) as Record<string, unknown>
+  const email = text(c.email, 100)
+  if (!isDate(body.date) || !isTime(body.time) || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return null
+  return {
+    kind: body.kind === 'subscription' ? 'subscription' : 'booking',
+    reference: text(body.reference, 20),
+    serviceName: text(body.serviceName, 100),
+    date: body.date,
+    time: body.time,
+    durationHours: Math.min(12, Math.max(0.5, Number(body.durationHours) || 1)),
+    price: text(body.price, 100),
+    details: Array.isArray(body.details) ? body.details.slice(0, 10).map((d) => text(d)) : [],
+    contact: {
+      name: text(c.name, 100),
+      phone: text(c.phone, 30),
+      email,
+      address: text(c.address),
+      city: text(c.city, 100),
+      zip: text(c.zip, 10),
+      notes: text(c.notes, 1000),
+    },
+  }
+}
+
+async function addToCalendar(b: BookingEmail) {
+  const start = keralaTime(b.date, b.time)
+  const end = new Date(start.getTime() + b.durationHours * 3600_000)
+  if ((await busyBetween(start, end)).length > 0) return 'taken' as const
+
+  const c = b.contact
+  const description = [
+    `Booking ref: ${b.reference}`,
+    `Price: ${b.price}`,
+    ...b.details,
+    '',
+    `Customer: ${c.name}`,
+    `Phone: ${c.phone}`,
+    `Email: ${c.email}`,
+    ...(c.notes ? [`Notes: ${c.notes}`] : []),
+  ].join('\n')
+
+  const event = await createEvent({
+    summary: `${b.serviceName} — ${c.name}`,
+    location: [c.address, c.city, c.zip].filter(Boolean).join(', '),
+    description,
+    start: { dateTime: start.toISOString(), timeZone: TIME_ZONE },
+    end: { dateTime: end.toISOString(), timeZone: TIME_ZONE },
+  })
+  return event.id
+}
+
 /**
  * POST /api/book
- * Adds the booking to Google Calendar, or replies 409 if the time is no longer free.
+ * Adds the booking to Google Calendar (409 if the time is no longer free),
+ * then emails the customer a confirmation and the business a copy.
  */
 export async function POST(request: Request) {
-  if (!isConfigured()) return json({ error: 'Calendar not connected' }, 503)
+  if (!isConfigured() && !mailConfigured()) return json({ error: 'Not configured' }, 503)
 
-  let b: CalendarBooking
+  let b: BookingEmail | null
   try {
-    b = (await request.json()) as CalendarBooking
+    b = clean((await request.json()) as Record<string, unknown>)
   } catch {
-    return json({ error: 'Invalid request' }, 400)
+    b = null
   }
-  if (!isDate(b.date) || !isTime(b.time) || !b.contact) return json({ error: 'Invalid request' }, 400)
+  if (!b) return json({ error: 'Invalid request' }, 400)
 
-  const hours = Math.min(12, Math.max(0.5, Number(b.durationHours) || 1))
-  const start = keralaTime(b.date, b.time)
-  const end = new Date(start.getTime() + hours * 3600_000)
-
-  try {
-    if ((await busyBetween(start, end)).length > 0) {
-      return json({ error: 'That time has just been booked' }, 409)
+  let eventId: string | null = null
+  if (isConfigured()) {
+    try {
+      const result = await addToCalendar(b)
+      if (result === 'taken') return json({ error: 'That time has just been booked' }, 409)
+      eventId = result
+    } catch (e) {
+      console.error(e)
     }
-
-    const c = b.contact
-    const name = text(c.name, 100)
-    const notes = text(c.notes, 1000)
-    const description = [
-      `Booking ref: ${text(b.reference, 20)}`,
-      `Price: ${text(b.price, 100)}`,
-      ...(Array.isArray(b.details) ? b.details.slice(0, 10).map((d) => text(d)) : []),
-      '',
-      `Customer: ${name}`,
-      `Phone: ${text(c.phone, 30)}`,
-      `Email: ${text(c.email, 100)}`,
-      ...(notes ? [`Notes: ${notes}`] : []),
-    ].join('\n')
-
-    const event = await createEvent({
-      summary: `${text(b.serviceName, 100)} — ${name}`,
-      location: [c.address, c.city, c.zip].map((v) => text(v)).filter(Boolean).join(', '),
-      description,
-      start: { dateTime: start.toISOString(), timeZone: TIME_ZONE },
-      end: { dateTime: end.toISOString(), timeZone: TIME_ZONE },
-    })
-    return json({ eventId: event.id })
-  } catch (e) {
-    console.error(e)
-    return json({ error: 'Could not update the calendar' }, 502)
   }
+
+  let emailed = false
+  if (mailConfigured()) {
+    try {
+      await sendBookingEmails(b)
+      emailed = true
+    } catch (e) {
+      console.error(e)
+    }
+  }
+
+  return json({ eventId, emailed })
 }

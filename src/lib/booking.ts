@@ -1,7 +1,7 @@
 import { bookingEndpoint, business } from '../data/config'
 import type { PlanId } from '../data/plans'
 import { extras, frequencies, unitLabels, type FrequencyId, type ServiceId } from '../data/services'
-import { addToBusinessCalendar } from './availability'
+import { recordBooking } from './availability'
 import { formatMoney, formatNumber, parseISODate } from './format'
 import type { PlanQuote, Quote, Sizing } from './pricing'
 
@@ -35,6 +35,8 @@ export interface Booking extends BookingDraft {
   planQuote: PlanQuote | null
   /** Length of the (first) visit, for the calendar entry. */
   durationHours: number
+  /** Whether a confirmation email was sent to the customer. */
+  emailed?: boolean
 }
 
 export type BookingPricing = Pick<Booking, 'quote' | 'planQuote' | 'durationHours'>
@@ -96,7 +98,9 @@ export async function submitBooking(
     createdAt: new Date().toISOString(),
   }
 
-  const inCalendar = await addToBusinessCalendar({
+  const kind = draft.planId ? 'subscription' : 'booking'
+  const { inCalendar, emailed } = await recordBooking({
+    kind,
     reference: booking.reference,
     serviceName,
     date: booking.date!,
@@ -107,8 +111,10 @@ export async function submitBooking(
     contact: booking.contact,
   })
 
+  booking.emailed = emailed
+  const recorded = inCalendar || emailed
+
   if (bookingEndpoint) {
-    const kind = draft.planId ? 'subscription' : 'booking'
     const res = await fetch(bookingEndpoint, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
@@ -118,11 +124,10 @@ export async function submitBooking(
         ...booking,
       }),
     })
-    // Once it's in the calendar the booking is safe, so only fail when nothing was recorded.
-    if (!res.ok && !inCalendar) {
+    if (!res.ok && !recorded) {
       throw new Error('We could not send your booking. Please try again or call us.')
     }
-  } else if (!inCalendar) {
+  } else if (!recorded) {
     await new Promise((r) => setTimeout(r, 700))
   }
 

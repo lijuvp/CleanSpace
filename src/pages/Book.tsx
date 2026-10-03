@@ -23,7 +23,7 @@ import { Rate } from '../components/ServiceCard'
 import SizeInput from '../components/SizeInput'
 import { Sparkle } from '../components/Graphics'
 import { savePercent } from '../components/Plans'
-import { bookingEndpoint, business } from '../data/config'
+import { business } from '../data/config'
 import { getPlan, plans, type Plan, type PlanId } from '../data/plans'
 import {
   categories,
@@ -1054,7 +1054,7 @@ function Confirmation({
           {booking.planQuote ? 'Welcome to Care Plans' : 'You’re booked'}, {booking.contact.name.split(' ')[0]}!
         </h1>
         <p className="lead">
-          We’ve received your request{bookingEndpoint ? ` and sent the details to ${booking.contact.email}` : ''}.
+          We’ve received your request{booking.emailed ? ` and emailed the details to ${booking.contact.email}` : ''}.
           We’ll call to confirm shortly.
         </p>
 

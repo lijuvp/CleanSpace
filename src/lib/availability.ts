@@ -2,6 +2,7 @@
 export type BusyRanges = [number, number][]
 
 export interface CalendarBooking {
+  kind: 'booking' | 'subscription'
   reference: string
   serviceName: string
   date: string
@@ -58,11 +59,16 @@ export function slotStatus(time: string, hours: number, busy: BusyRanges): SlotS
   return 'free'
 }
 
+export interface RecordResult {
+  inCalendar: boolean
+  emailed: boolean
+}
+
 /**
- * Adds the booking to the Google Calendar. Returns whether it was added;
- * throws SlotTakenError if the time is no longer free.
+ * Adds the booking to the Google Calendar and emails the customer and the
+ * business. Throws SlotTakenError if the time is no longer free.
  */
-export async function addToBusinessCalendar(booking: CalendarBooking): Promise<boolean> {
+export async function recordBooking(booking: CalendarBooking): Promise<RecordResult> {
   try {
     const res = await fetch(`${api}/book`, {
       method: 'POST',
@@ -70,9 +76,10 @@ export async function addToBusinessCalendar(booking: CalendarBooking): Promise<b
       body: JSON.stringify(booking),
     })
     if (res.status === 409) throw new SlotTakenError()
-    return res.ok && !!(await readJson(res))?.eventId
+    const data = res.ok ? await readJson(res) : null
+    return { inCalendar: !!data?.eventId, emailed: data?.emailed === true }
   } catch (e) {
     if (e instanceof SlotTakenError) throw e
-    return false
+    return { inCalendar: false, emailed: false }
   }
 }

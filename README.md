@@ -84,6 +84,21 @@ This runs as two Vercel functions in `api/` (`/CleanSpace/api/availability` and
 
 The functions only run on Vercel; with `npm run dev` every time is offered.
 
+## Confirmation emails
+
+`/CleanSpace/api/book` also emails the customer a confirmation (replies come to you)
+and sends you a copy of every booking (replies go to the customer). It sends through
+Gmail, which allows about 500 emails a day.
+
+1. Turn on [2-Step Verification](https://myaccount.google.com/signinoptions/twosv) for the
+   Gmail account, then create an [App Password](https://myaccount.google.com/apppasswords)
+   (name it "Clean Space"). Google shows a 16-letter password once.
+2. In Vercel → `clean-space` → Environment Variables, add:
+   - `GMAIL_USER`: the Gmail address the emails are sent from
+   - `GMAIL_APP_PASSWORD`: the 16-letter App Password
+   - `NOTIFY_EMAIL` (optional): where your copies go; defaults to `GMAIL_USER`
+3. Redeploy. Business name and phone in the emails are set at the top of `api/_mail.ts`.
+
 ## Deploy to lijuvp.com/CleanSpace
 
 ### Vercel (current setup for lijuvp.com)
