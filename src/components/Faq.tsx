@@ -12,7 +12,7 @@ const faqs = [
   },
   {
     q: 'Which areas do you serve?',
-    a: `We serve homes and offices across ${business.city}, ${business.state} — including ${business.areas.join(', ')}. Outside these areas? Book anyway or call us and we’ll confirm if we can reach you.`,
+    a: `We serve homes and offices across ${business.city}, ${business.state} — including ${business.areas.join(', ')}. Outside these areas? Book anyway or WhatsApp us on ${business.phone} and we’ll confirm if we can reach you.`,
   },
   {
     q: 'Do I need to be home during the service?',

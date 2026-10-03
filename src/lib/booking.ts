@@ -125,7 +125,7 @@ export async function submitBooking(
       }),
     })
     if (!res.ok && !recorded) {
-      throw new Error('We could not send your booking. Please try again or call us.')
+      throw new Error('We could not send your booking. Please try again or message us on WhatsApp.')
     }
   } else if (!recorded) {
     await new Promise((r) => setTimeout(r, 700))
@@ -177,7 +177,7 @@ export function calendarFileUrl(b: Booking) {
     `DTEND:${stamp(end)}`,
     `SUMMARY:${business.name} — ${b.serviceName}`,
     `LOCATION:${address.replace(/,/g, '\\,')}`,
-    `DESCRIPTION:Booking ref ${b.reference}. Questions? ${business.phone}`,
+    `DESCRIPTION:Booking ref ${b.reference}. Questions? WhatsApp ${business.phone}`,
     'END:VEVENT',
     'END:VCALENDAR',
   ].join('\r\n')

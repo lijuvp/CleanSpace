@@ -2,7 +2,7 @@
 export const business = {
   name: 'Clean Space',
   tagline: 'Spotless spaces. Zero hassle.',
-  phone: '+91 7559049070',
+  phone: '+91 8137980315',
   email: 'hello@cleanspace.in',
   city: 'Kozhikode',
   state: 'Kerala',
@@ -21,6 +21,14 @@ export const business = {
   /** Days of week that are closed (0 = Sunday). */
   closedWeekdays: [0] as number[],
 }
+
+/** Opens a WhatsApp chat with the business number, with a greeting pre-filled. */
+export const whatsappUrl = `https://wa.me/${business.phone.replace(/\D/g, '')}?text=${encodeURIComponent(
+  `Hi ${business.name}, I'd like to know more about your cleaning services.`,
+)}`
+
+/** Props for links that open WhatsApp in a new tab. */
+export const whatsappLink = { href: whatsappUrl, target: '_blank', rel: 'noopener noreferrer' } as const
 
 /**
  * Optional: where booking requests are POSTed as JSON.

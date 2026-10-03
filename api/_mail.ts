@@ -4,7 +4,8 @@ import { TIME_ZONE } from './_google.js'
 /** Keep in sync with src/data/config.ts. */
 const BUSINESS = {
   name: 'Clean Space',
-  phone: '+91 7559049070',
+  phone: '+91 8137980315',
+  whatsapp: 'https://wa.me/918137980315',
   site: 'https://www.lijuvp.com/CleanSpace/',
 }
 
@@ -85,9 +86,9 @@ function layout(title: string, intro: string, table: string[][], outro: string) 
     <table style="border-collapse:collapse;width:100%;font-size:14px">${htmlRows}</table>
     <p style="margin:20px 0 0;color:#334;line-height:1.5">${escape(outro)}</p>
   </div>
-  <p style="text-align:center;color:#7a8a8a;font-size:12px;margin-top:16px">${BUSINESS.name} · ${BUSINESS.phone} · <a href="${BUSINESS.site}" style="color:#1f6f66">${BUSINESS.site.replace('https://', '')}</a></p>
+  <p style="text-align:center;color:#7a8a8a;font-size:12px;margin-top:16px">${BUSINESS.name} · <a href="${BUSINESS.whatsapp}" style="color:#1f6f66">WhatsApp ${BUSINESS.phone}</a> · <a href="${BUSINESS.site}" style="color:#1f6f66">${BUSINESS.site.replace('https://', '')}</a></p>
 </div></body></html>`
-  const text = [title, '', intro, '', ...table.map(([k, v]) => (k ? `${k}: ${v}` : v)), '', outro, '', `${BUSINESS.name} · ${BUSINESS.phone}`].join('\n')
+  const text = [title, '', intro, '', ...table.map(([k, v]) => (k ? `${k}: ${v}` : v)), '', outro, '', `${BUSINESS.name} · WhatsApp ${BUSINESS.phone}: ${BUSINESS.whatsapp}`].join('\n')
   return { html, text }
 }
 
@@ -106,7 +107,7 @@ export async function sendBookingEmails(b: BookingEmail) {
       ? `We've received your ${b.serviceName} subscription. Your first visit is on ${date} at ${time}. We'll call you shortly to agree your regular schedule.`
       : `We've received your booking for ${date} at ${time}. We'll call you shortly to confirm.`,
     [['Reference', b.reference], ...table],
-    `Need to change something? Reply to this email or call us on ${BUSINESS.phone}. Free cancellation up to 24 hours before your visit.`,
+    `Need to change something? Reply to this email or WhatsApp us on ${BUSINESS.phone}. Free cancellation up to 24 hours before your visit.`,
   )
   const owner = layout(
     `New ${b.kind}: ${b.serviceName}`,

@@ -5,8 +5,8 @@ import {
   Heart,
   Leaf,
   Lock,
+  MessageCircle,
   MousePointerClick,
-  Phone,
   ShieldCheck,
   Sparkles,
 } from 'lucide-react'
@@ -17,7 +17,7 @@ import { Bubbles, BucketMop, SparkleCluster, Sponge, SprayBottle } from '../comp
 import CarePlans, { savePercent } from '../components/Plans'
 import ServiceCard, { Rate } from '../components/ServiceCard'
 import SizeInput from '../components/SizeInput'
-import { business } from '../data/config'
+import { business, whatsappLink } from '../data/config'
 import {
   categories,
   frequencies,
@@ -201,8 +201,8 @@ function Hero({ estimate }: { estimate: ReactNode }) {
             <Link to="/services" className="btn btn--ghost">
               Browse services
             </Link>
-            <a href={`tel:${business.phone.replace(/[^+\d]/g, '')}`} className="btn btn--ghost">
-              <Phone size={18} /> {business.phone}
+            <a {...whatsappLink} className="btn btn--ghost" aria-label={`Chat on WhatsApp: ${business.phone}`}>
+              <MessageCircle size={18} /> {business.phone}
             </a>
           </div>
           <Link to="/#plans" className="hero__promo">
@@ -372,8 +372,8 @@ export default function Home() {
             <span className="eyebrow">FAQ</span>
             <h2>Questions? We’ve got answers.</h2>
             <p>
-              Can’t find what you’re looking for? Call us on{' '}
-              <a href={`tel:${business.phone.replace(/[^+\d]/g, '')}`}>{business.phone}</a> or email{' '}
+              Can’t find what you’re looking for? WhatsApp us on{' '}
+              <a {...whatsappLink}>{business.phone}</a> or email{' '}
               <a href={`mailto:${business.email}`}>{business.email}</a>.
             </p>
           </div>

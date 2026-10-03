@@ -1,7 +1,7 @@
-import { Menu, Phone, X } from 'lucide-react'
+import { Menu, MessageCircle, X } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { Link, NavLink } from 'react-router-dom'
-import { business } from '../data/config'
+import { business, whatsappLink } from '../data/config'
 import Logo from './Logo'
 
 const links = [
@@ -22,15 +22,13 @@ export default function Header({ minimal = false }: { minimal?: boolean }) {
     return () => window.removeEventListener('scroll', onScroll)
   }, [])
 
-  const tel = `tel:${business.phone.replace(/[^+\d]/g, '')}`
-
   if (minimal) {
     return (
       <header className="header header--scrolled">
         <div className="container header__inner">
           <Logo />
-          <a className="header__help" href={tel}>
-            <Phone size={16} />
+          <a className="header__help" {...whatsappLink} aria-label={`Chat on WhatsApp: ${business.phone}`}>
+            <MessageCircle size={16} />
             <span>
               Need help? <strong>{business.phone}</strong>
             </span>
@@ -61,8 +59,8 @@ export default function Header({ minimal = false }: { minimal?: boolean }) {
               </NavLink>
             ),
           )}
-          <a className="nav__link nav__phone" href={tel}>
-            <Phone size={16} /> {business.phone}
+          <a className="nav__link nav__phone" {...whatsappLink} aria-label={`Chat on WhatsApp: ${business.phone}`}>
+            <MessageCircle size={16} /> {business.phone}
           </a>
           <Link to="/book" className="btn btn--primary nav__cta">
             Book a clean

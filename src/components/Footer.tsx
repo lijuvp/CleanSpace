@@ -1,6 +1,6 @@
-import { Clock, Mail, MapPin, Phone } from 'lucide-react'
+import { Clock, Mail, MapPin, MessageCircle } from 'lucide-react'
 import { Link } from 'react-router-dom'
-import { business } from '../data/config'
+import { business, whatsappLink } from '../data/config'
 import { services } from '../data/services'
 import Logo from './Logo'
 
@@ -44,8 +44,10 @@ export default function Footer() {
           <h4>Contact</h4>
           <ul className="footer__contact">
             <li>
-              <Phone size={16} />
-              <a href={`tel:${business.phone.replace(/[^+\d]/g, '')}`}>{business.phone}</a>
+              <MessageCircle size={16} />
+              <a {...whatsappLink} aria-label={`Chat on WhatsApp: ${business.phone}`}>
+                {business.phone} (WhatsApp)
+              </a>
             </li>
             <li>
               <Mail size={16} />
