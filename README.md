@@ -63,8 +63,12 @@ This runs as two Vercel functions in `api/` (`/CleanSpace/api/availability` and
 
 1. In [Google Cloud Console](https://console.cloud.google.com/), create a project and
    enable the **Google Calendar API** (APIs & Services → Library).
-2. Go to **IAM & Admin → Service accounts**, create a service account, then open it →
-   **Keys → Add key → JSON**. A `.json` file downloads; keep it private.
+2. Go to **IAM & Admin → Service accounts** and create a service account (skip the optional
+   role and access steps). Back in the list, click the account's email to open it, then go to
+   the **Keys** tab → **Add key → Create new key → JSON → Create**. A `.json` file downloads;
+   keep it private. If key creation is blocked by an organization policy, use a personal
+   @gmail.com Google account for the project, or turn off the
+   `iam.disableServiceAccountKeyCreation` policy for this project.
 3. In [Google Calendar](https://calendar.google.com), create a calendar (e.g. "Clean Space
    bookings"). In its **Settings → Share with specific people**, add the service
    account's email (`…@….iam.gserviceaccount.com`) with **Make changes to events**.
