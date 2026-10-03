@@ -1,0 +1,10 @@
+# Clean Space single-page app fallback (Apache / most shared hosting).
+# Upload this file together with the build into the /CleanSpace/ folder.
+<IfModule mod_rewrite.c>
+  RewriteEngine On
+  RewriteBase /CleanSpace/
+  RewriteRule ^index\.html$ - [L]
+  RewriteCond %{REQUEST_FILENAME} !-f
+  RewriteCond %{REQUEST_FILENAME} !-d
+  RewriteRule . /CleanSpace/index.html [L]
+</IfModule>
