@@ -4,7 +4,7 @@ import { business } from '../data/config'
 const faqs = [
   {
     q: 'How is the price calculated?',
-    a: 'Most services are priced per square foot of the area we work on, and sofa shampooing is priced per seat. Pick your service and size online and you’ll see the full price before you book.',
+    a: 'Most services are priced per square foot of the area we work on. Sofa shampooing is priced per seat, water tank cleaning per litre of tank capacity and waste removal per kg. Normal home cleaning has a minimum charge of 1,000 sq.ft per visit. Pick your service and size online and you’ll see the price before you book; services marked “from” or “up to” are confirmed after a free inspection.',
   },
   {
     q: 'How do Care Plans work?',

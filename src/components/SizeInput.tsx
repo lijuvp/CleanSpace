@@ -1,6 +1,6 @@
 import { useId, useState } from 'react'
-import { bhkPresets, type Service } from '../data/services'
-import { formatMoney, formatNumber } from '../lib/format'
+import { bhkPresets, unitLabels, type Service } from '../data/services'
+import { formatMoney, formatNumber, formatRate } from '../lib/format'
 import { clampQuantity, unitRate, type Sizing } from '../lib/pricing'
 import Counter from './Counter'
 
@@ -35,10 +35,14 @@ export default function SizeInput({ service, sizing, onChange }: Props) {
   const setSqft = (value: number) =>
     onChange({ ...sizing, sqft: Math.min(max, Math.max(min, Math.round(value))) })
 
+  const unit = unitLabels[service.unit].plural
+  const label =
+    service.size?.label ?? `Area to be ${service.category === 'pest' ? 'treated' : 'cleaned'}`
+
   return (
     <div className="size-input range-field">
       <div className="range-field__head">
-        <label htmlFor={`${id}-sqft`}>Area to be {service.category === 'pest' ? 'treated' : 'cleaned'}</label>
+        <label htmlFor={`${id}-sqft`}>{label}</label>
         <div className="sqft-box">
           <input
             id={`${id}-sqft`}
@@ -58,7 +62,7 @@ export default function SizeInput({ service, sizing, onChange }: Props) {
               setTyping(null)
             }}
           />
-          <span>sq.ft</span>
+          <span>{unit}</span>
         </div>
       </div>
 
@@ -82,7 +86,7 @@ export default function SizeInput({ service, sizing, onChange }: Props) {
 
       <input
         type="range"
-        aria-label="Area in square feet"
+        aria-label={`${label} in ${unit === 'sq.ft' ? 'square feet' : unit}`}
         min={min}
         max={max}
         step={step}
@@ -91,8 +95,17 @@ export default function SizeInput({ service, sizing, onChange }: Props) {
       />
       <div className="range-field__scale">
         <span>{formatNumber(min)}</span>
-        <span>{formatNumber(max)}+ sq.ft</span>
+        <span>
+          {formatNumber(max)}+ {unit}
+        </span>
       </div>
+
+      {service.minQuantity && (
+        <p className="hint hint--tight">
+          Minimum charge per visit: {formatNumber(service.minQuantity)} {unit} (
+          {formatMoney(service.minQuantity * service.rate)}).
+        </p>
+      )}
 
       {service.tiers && (
         <ul className="tiers" aria-label="Volume pricing">
@@ -103,10 +116,12 @@ export default function SizeInput({ service, sizing, onChange }: Props) {
               <li key={t.rate} className={active ? 'is-active' : ''}>
                 <span>
                   {t.upTo === Infinity
-                    ? `${formatNumber(from)}+ sq.ft`
-                    : `${formatNumber(from)}–${formatNumber(t.upTo)} sq.ft`}
+                    ? `${formatNumber(from)}+ ${unit}`
+                    : `${formatNumber(from)}–${formatNumber(t.upTo)} ${unit}`}
                 </span>
-                <strong>{formatMoney(t.rate)}/sq.ft</strong>
+                <strong>
+                  {formatRate(t.rate)}/{unitLabels[service.unit].short}
+                </strong>
               </li>
             )
           })}

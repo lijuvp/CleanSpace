@@ -8,6 +8,17 @@ const money = new Intl.NumberFormat(business.locale, {
 
 export const formatMoney = (value: number) => money.format(Math.round(value))
 
+const withPaise = new Intl.NumberFormat(business.locale, {
+  style: 'currency',
+  currency: business.currency,
+  minimumFractionDigits: 2,
+  maximumFractionDigits: 2,
+})
+
+/** For per-unit rates, which can include paise (e.g. ₹1.50 per litre). */
+export const formatRate = (value: number) =>
+  Number.isInteger(value) ? formatMoney(value) : withPaise.format(value)
+
 export const formatNumber = (value: number) => value.toLocaleString(business.locale)
 
 export const formatTime = (hhmm: string) => {

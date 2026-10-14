@@ -138,7 +138,7 @@ function Estimator({
       )}
       <div className="calculator__total">
         <div>
-          <small>{q.estimateOnly ? 'Estimated from' : 'Estimated total'}</small>
+          <small>{q.estimateOnly ? 'Estimate' : 'Estimated total'}</small>
           <strong>{formatMoney(q.total)}</strong>
           {q.discount > 0 && <s>{formatMoney(q.subtotal)}</s>}
         </div>
@@ -188,9 +188,9 @@ function Hero({ estimate }: { estimate: ReactNode }) {
             <SparkleCluster />
           </h1>
           <p className="lead">
-            Deep cleaning, sofa & carpet shampooing and pest control for homes and offices across{' '}
-            {business.city}. Transparent per-sq.ft pricing, trained professionals and a redo
-            guarantee on every visit.
+            Deep cleaning, sofa & carpet shampooing, pest control, water tank and glass cleaning for
+            homes and offices across {business.city}. Transparent pricing, trained professionals and a
+            redo guarantee on every visit.
           </p>
           <ul className="hero__points">
             <li><CircleCheck size={18} /> See your exact price before you book</li>
@@ -298,11 +298,11 @@ function Pricing({
           <h2>Simple rates. No surprises.</h2>
           <p>
             Most services are priced per square foot of the area we work on; sofa shampooing is per
-            seat. Need us regularly? <Link to="/#plans">Care Plans</Link> save up to {savePercent}.
+            seat, tank cleaning per litre and waste removal per kg. Need us regularly? <Link to="/#plans">Care Plans</Link> save up to {savePercent}.
           </p>
           <p className="muted small">
-            Tap any service to get an instant estimate. “From” prices are confirmed after a free
-            on-site inspection. Taxes as applicable.
+            Tap any service to get an instant estimate. “From” and “up to” prices are confirmed after
+            a free on-site inspection. Taxes as applicable.
           </p>
         </div>
         <ul className="rate-card">

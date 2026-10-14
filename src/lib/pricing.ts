@@ -8,7 +8,7 @@ import {
   type Service,
   type Unit,
 } from '../data/services'
-import { formatMoney } from './format'
+import { formatRate } from './format'
 
 export interface Sizing {
   sqft: number
@@ -18,6 +18,8 @@ export interface Sizing {
 export interface Quote {
   unit: Unit
   quantity: number
+  /** Quantity charged for; above `quantity` when a minimum charge applies. */
+  billed: number
   rate: number
   base: number
   extrasTotal: number
@@ -54,7 +56,8 @@ export function quote(
 ): Quote {
   const quantity = clampQuantity(service, sizing)
   const rate = unitRate(service, quantity)
-  const base = quantity * rate
+  const billed = Math.max(quantity, service.minQuantity ?? 0)
+  const base = billed * rate
 
   const chosen = extras.filter((e) => extraIds.includes(e.id))
   const extrasTotal = chosen.reduce((sum, e) => sum + e.price, 0)
@@ -74,6 +77,7 @@ export function quote(
   return {
     unit: service.unit,
     quantity,
+    billed,
     rate,
     base,
     extrasTotal,
@@ -82,7 +86,7 @@ export function quote(
     total: subtotal - discount,
     hours: hours / team,
     team,
-    estimateOnly: !!service.fromPrice,
+    estimateOnly: !!(service.fromPrice || service.upTo),
   }
 }
 
@@ -116,18 +120,19 @@ export function planQuote(plan: Plan, sqft: number): PlanQuote {
   return { sqft, value, savings: value - total, total, visitHours, estimateOnly }
 }
 
-/** Rate card label, e.g. "₹6/sq.ft", "from ₹2/sq.ft", "₹7–₹10/sq.ft". */
+/** Rate card label, e.g. "₹3/sq.ft", "from ₹5/sq.ft", "up to ₹8/sq.ft", "₹7–₹10/sq.ft". */
 export function rateLabel(service: Service) {
   const unit = `/${unitLabels[service.unit].short}`
   if (service.tiers) {
     const rates = service.tiers.map((t) => t.rate)
     return {
       prefix: '',
-      amount: `${formatMoney(Math.min(...rates))}–${formatMoney(Math.max(...rates))}`,
+      amount: `${formatRate(Math.min(...rates))}–${formatRate(Math.max(...rates))}`,
       unit,
     }
   }
-  return { prefix: service.fromPrice ? 'from' : '', amount: formatMoney(service.rate), unit }
+  const prefix = service.upTo ? 'up to' : service.fromPrice ? 'from' : ''
+  return { prefix, amount: formatRate(service.rate), unit }
 }
 
 export const rateText = (service: Service) => {

@@ -47,7 +47,7 @@ import {
   type Contact,
 } from '../lib/booking'
 import { fetchBusy, slotStatus, SlotTakenError, type BusyRanges, type SlotStatus } from '../lib/availability'
-import { formatDate, formatHours, formatMoney, formatNumber, formatTime } from '../lib/format'
+import { formatDate, formatHours, formatMoney, formatNumber, formatRate, formatTime } from '../lib/format'
 import {
   clampQuantity,
   planQuote,
@@ -321,12 +321,16 @@ export default function Book() {
                 <section>
                   <StepHeading
                     headingRef={headingRef}
-                    title={service.unit === 'seat' ? 'How many seats?' : 'How big is the area?'}
+                    title={
+                      service.size?.question ?? (service.unit === 'seat' ? 'How many seats?' : 'How big is the area?')
+                    }
                   >
                     {service.name} · adjust the details and your price updates instantly.
                   </StepHeading>
 
-                  <h3 className="group-title">{service.unit === 'seat' ? 'Seats' : 'Area'}</h3>
+                  <h3 className="group-title">
+                    {service.size?.title ?? (service.unit === 'seat' ? 'Seats' : 'Area')}
+                  </h3>
                   <SizeInput
                     service={service}
                     sizing={draft.sizing}
@@ -594,7 +598,7 @@ export default function Book() {
                       {service.recurring && ` · ${frequencies.find((f) => f.id === frequency)!.name}`}
                     </ReviewRow>
                     <ReviewRow icon={<Info size={18} />} label="Details" onEdit={() => goTo(1)}>
-                      {quantityLabel(q)}
+                      {quantityLabel(q.quantity, q)}
                       {extraIds.length > 0 &&
                         ` · ${availableExtras
                           .filter((e) => extraIds.includes(e.id))
@@ -873,15 +877,16 @@ function ReviewRow({
   )
 }
 
-const quantityLabel = (q: Quote) =>
-  `${formatNumber(q.quantity)} ${q.quantity === 1 ? unitLabels[q.unit].short : unitLabels[q.unit].plural}`
+const quantityLabel = (n: number, q: Quote) =>
+  `${formatNumber(n)} ${n === 1 ? unitLabels[q.unit].short : unitLabels[q.unit].plural}`
 
 function PriceBreakdown({ q }: { q: Quote }) {
   return (
     <dl className="breakdown">
       <div>
         <dt>
-          {quantityLabel(q)} × {formatMoney(q.rate)}
+          {quantityLabel(q.billed, q)}
+          {q.billed > q.quantity && ' (minimum)'} × {formatRate(q.rate)}
         </dt>
         <dd>{formatMoney(q.base)}</dd>
       </div>
@@ -1005,7 +1010,7 @@ function Summary({
         <div>
           <strong>{service.name}</strong>
           <small>
-            {quantityLabel(q)}
+            {quantityLabel(q.quantity, q)}
             {service.recurring && ` · ${frequencies.find((f) => f.id === frequency)!.name}`}
           </small>
         </div>

@@ -3,8 +3,8 @@ import { Link } from 'react-router-dom'
 import { Bubbles, SprayBottle } from '../components/Graphics'
 import { PlanBanner } from '../components/Plans'
 import { Rate } from '../components/ServiceCard'
-import { categories, extras, services } from '../data/services'
-import { formatMoney } from '../lib/format'
+import { categories, extras, services, unitLabels } from '../data/services'
+import { formatMoney, formatNumber } from '../lib/format'
 
 export default function Services() {
   return (
@@ -66,14 +66,20 @@ export default function Services() {
                     <Users size={16} /> {s.idealFor}
                   </li>
                   <li>
-                    <Ruler size={16} /> {s.unit === 'seat' ? 'Priced per seat' : 'Priced per sq.ft of area'}
+                    <Ruler size={16} />{' '}
+                    {s.unit === 'sqft' ? 'Priced per sq.ft of area' : `Priced per ${unitLabels[s.unit].short}`}
                   </li>
-                  {s.tiers && (
+                  {s.minQuantity && (
                     <li>
-                      <TrendingDown size={16} /> Lower rate for larger areas
+                      <Ruler size={16} /> Minimum {formatNumber(s.minQuantity)} {unitLabels[s.unit].plural} per visit
                     </li>
                   )}
-                  {s.fromPrice && (
+                  {s.tiers && (
+                    <li>
+                      <TrendingDown size={16} /> Lower rate for bigger jobs
+                    </li>
+                  )}
+                  {(s.fromPrice || s.upTo) && (
                     <li>
                       <Search size={16} /> Final price after free inspection
                     </li>
