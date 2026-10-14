@@ -68,6 +68,10 @@ export const plans: Plan[] = [
   },
 ]
 
-export const getPlan = (id: string | null | undefined) => plans.find((p) => p.id === id)
+/** Set to true to offer Care Plans (monthly subscriptions) across the site again. */
+export const plansEnabled = false
+
+export const getPlan = (id: string | null | undefined) =>
+  plansEnabled ? plans.find((p) => p.id === id) : undefined
 
 export const maxPlanDiscount = Math.max(...plans.map((p) => p.discount))

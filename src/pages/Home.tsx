@@ -18,6 +18,7 @@ import CarePlans, { savePercent } from '../components/Plans'
 import ServiceCard, { Rate } from '../components/ServiceCard'
 import SizeInput from '../components/SizeInput'
 import { business, whatsappLink } from '../data/config'
+import { plansEnabled } from '../data/plans'
 import {
   categories,
   frequencies,
@@ -151,7 +152,7 @@ function Estimator({
         Book now <ArrowRight size={18} />
       </Link>
       <p className="calculator__note">
-        {service.recurring ? (
+        {service.recurring && plansEnabled ? (
           <Link to="/#plans">Need regular cleaning? Save more with a Care Plan →</Link>
         ) : (
           'No payment today · Free cancellation up to 24h'
@@ -205,13 +206,15 @@ function Hero({ estimate }: { estimate: ReactNode }) {
               <MessageCircle size={18} /> {business.phone}
             </a>
           </div>
-          <Link to="/#plans" className="hero__promo">
-            <span className="hero__promo-tag">New</span>
-            <span>
-              <strong>Care Plans</strong> — monthly cleaning &amp; pest control, save up to {savePercent}
-            </span>
-            <ArrowRight size={16} />
-          </Link>
+          {plansEnabled && (
+            <Link to="/#plans" className="hero__promo">
+              <span className="hero__promo-tag">New</span>
+              <span>
+                <strong>Care Plans</strong> — monthly cleaning &amp; pest control, save up to {savePercent}
+              </span>
+              <ArrowRight size={16} />
+            </Link>
+          )}
         </div>
         <div className="hero__visual">
           <Sponge className="hero__sponge" />
@@ -298,7 +301,12 @@ function Pricing({
           <h2>Simple rates. No surprises.</h2>
           <p>
             Most services are priced per square foot of the area we work on; sofa shampooing is per
-            seat, tank cleaning per litre and waste removal per kg. Need us regularly? <Link to="/#plans">Care Plans</Link> save up to {savePercent}.
+            seat, tank cleaning per litre and waste removal per kg.
+            {plansEnabled && (
+              <>
+                {' '}Need us regularly? <Link to="/#plans">Care Plans</Link> save up to {savePercent}.
+              </>
+            )}
           </p>
           <p className="muted small">
             Tap any service to get an instant estimate. “From” and “up to” prices are confirmed after
@@ -361,7 +369,7 @@ export default function Home() {
         </div>
       </section>
 
-      <CarePlans />
+      {plansEnabled && <CarePlans />}
       <ServicesSection />
       <HowItWorks />
       <Pricing selected={estimate.serviceId} onSelect={pickFromRateCard} />

@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom'
 import { Bubbles, SprayBottle } from '../components/Graphics'
 import { PlanBanner } from '../components/Plans'
 import { Rate } from '../components/ServiceCard'
+import { plansEnabled } from '../data/plans'
 import { categories, extras, services, unitLabels } from '../data/services'
 import { formatMoney, formatNumber } from '../lib/format'
 
@@ -26,7 +27,7 @@ export default function Services() {
               </a>
             ))}
           </nav>
-          <PlanBanner />
+          {plansEnabled && <PlanBanner />}
         </div>
       </section>
 

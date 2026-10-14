@@ -1,15 +1,20 @@
 import { ChevronDown } from 'lucide-react'
 import { business } from '../data/config'
+import { plansEnabled } from '../data/plans'
 
 const faqs = [
   {
     q: 'How is the price calculated?',
     a: 'Most services are priced per square foot of the area we work on. Sofa shampooing is priced per seat, water tank cleaning per litre of tank capacity and waste removal per kg. Normal home cleaning has a minimum charge of 1,000 sq.ft per visit. Pick your service and size online and you’ll see the price before you book; services marked “from” or “up to” are confirmed after a free inspection.',
   },
-  {
-    q: 'How do Care Plans work?',
-    a: 'Choose a plan and your home size, then pick a date for your first visit. We call to agree a regular schedule and assign a dedicated team. You pay monthly after the month’s visits — no lock-in, and you can pause or cancel anytime with 7 days’ notice.',
-  },
+  ...(plansEnabled
+    ? [
+        {
+          q: 'How do Care Plans work?',
+          a: 'Choose a plan and your home size, then pick a date for your first visit. We call to agree a regular schedule and assign a dedicated team. You pay monthly after the month’s visits — no lock-in, and you can pause or cancel anytime with 7 days’ notice.',
+        },
+      ]
+    : []),
   {
     q: 'Which areas do you serve?',
     a: `We serve homes and offices across ${business.city}, ${business.state} — including ${business.areas.join(', ')}. Outside these areas? Book anyway or WhatsApp us on ${business.phone} and we’ll confirm if we can reach you.`,

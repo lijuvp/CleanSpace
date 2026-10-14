@@ -2,11 +2,12 @@ import { Menu, MessageCircle, X } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { Link, NavLink } from 'react-router-dom'
 import { business, whatsappLink } from '../data/config'
+import { plansEnabled } from '../data/plans'
 import Logo from './Logo'
 
 const links = [
   { to: '/services', label: 'Services' },
-  { to: '/#plans', label: 'Care Plans' },
+  ...(plansEnabled ? [{ to: '/#plans', label: 'Care Plans' }] : []),
   { to: '/#how-it-works', label: 'How it works' },
   { to: '/#pricing', label: 'Pricing' },
   { to: '/#faq', label: 'FAQ' },

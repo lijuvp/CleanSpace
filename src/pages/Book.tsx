@@ -24,7 +24,7 @@ import SizeInput from '../components/SizeInput'
 import { Sparkle } from '../components/Graphics'
 import { savePercent } from '../components/Plans'
 import { business } from '../data/config'
-import { getPlan, plans, type Plan, type PlanId } from '../data/plans'
+import { getPlan, plans, plansEnabled, type Plan, type PlanId } from '../data/plans'
 import {
   categories,
   extras,
@@ -759,37 +759,43 @@ function StepServices({
   return (
     <section>
       <StepHeading headingRef={headingRef} title="What do you need?">
-        Select a service or a monthly Care Plan — you’ll see your exact price on the next step.
+        {plansEnabled
+          ? 'Select a service or a monthly Care Plan — you’ll see your exact price on the next step.'
+          : 'Select a service — you’ll see your exact price on the next step.'}
       </StepHeading>
-      <h3 className="group-title">
-        Care Plans · monthly subscription <em className="badge badge--inline">Save up to {savePercent}</em>
-      </h3>
-      <div className="option-grid">
-        {plans.map((p) => (
-          <button
-            key={p.id}
-            type="button"
-            className={`option option--service ${selectedPlan === p.id ? 'option--active' : ''}`}
-            aria-pressed={selectedPlan === p.id}
-            onClick={() => onSelectPlan(p.id)}
-          >
-            <span className="option__icon">
-              <p.icon size={22} />
-            </span>
-            <span className="option__body">
-              <strong>
-                {p.name} Care Plan
-                {p.popular && <em className="badge badge--inline">Popular</em>}
-              </strong>
-              <span>{p.items.map((i) => i.label).join(' · ')}</span>
-            </span>
-            <span className="option__price">
-              {formatMoney(planQuote(p, planSqft).total)}
-              <small>per month</small>
-            </span>
-          </button>
-        ))}
-      </div>
+      {plansEnabled && (
+        <>
+          <h3 className="group-title">
+            Care Plans · monthly subscription <em className="badge badge--inline">Save up to {savePercent}</em>
+          </h3>
+          <div className="option-grid">
+            {plans.map((p) => (
+              <button
+                key={p.id}
+                type="button"
+                className={`option option--service ${selectedPlan === p.id ? 'option--active' : ''}`}
+                aria-pressed={selectedPlan === p.id}
+                onClick={() => onSelectPlan(p.id)}
+              >
+                <span className="option__icon">
+                  <p.icon size={22} />
+                </span>
+                <span className="option__body">
+                  <strong>
+                    {p.name} Care Plan
+                    {p.popular && <em className="badge badge--inline">Popular</em>}
+                  </strong>
+                  <span>{p.items.map((i) => i.label).join(' · ')}</span>
+                </span>
+                <span className="option__price">
+                  {formatMoney(planQuote(p, planSqft).total)}
+                  <small>per month</small>
+                </span>
+              </button>
+            ))}
+          </div>
+        </>
+      )}
       {categories.map((cat) => (
         <div key={cat.id}>
           <h3 className="group-title">{cat.label}</h3>
